@@ -1,9 +1,9 @@
-FROM java:8-jre
+FROM openjdk:8-jre-bullseye
 
-ENV VERTICLE_FILE target/monitor-dashboard-fat.jar
+ENV VERTICLE_FILE=target/monitor-dashboard-fat.jar
 
 # Set the location of the verticles
-ENV VERTICLE_HOME /opt/verticles
+ENV VERTICLE_HOME=/opt/verticles
 
 EXPOSE 9100
 

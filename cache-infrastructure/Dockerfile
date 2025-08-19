@@ -1,9 +1,9 @@
-FROM java:8-jre
+FROM openjdk:8-jre-bullseye
 
-ENV VERTICLE_FILE target/cache-infrastructure-fat.jar
+ENV VERTICLE_FILE=target/cache-infrastructure-fat.jar
 
 # Set the location of the verticles
-ENV VERTICLE_HOME /opt/verticles
+ENV VERTICLE_HOME=/opt/verticles
 
 COPY $VERTICLE_FILE $VERTICLE_HOME/
 COPY src/config/docker.json $VERTICLE_HOME/
