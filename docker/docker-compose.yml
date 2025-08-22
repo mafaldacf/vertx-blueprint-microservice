@@ -7,6 +7,12 @@ services:
       - "8000:80"
     volumes:
       - ${DIR}/config-server:/usr/local/apache2/htdocs:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   mysql:
     image: mysql:latest
     expose:
@@ -17,8 +23,8 @@ services:
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p666666"]
       interval: 10s
-      timeout: 3s
-      retries: 15
+      timeout: 5s
+      retries: 5
   mongo:
     image: mongo:latest
     expose:
@@ -27,7 +33,7 @@ services:
       test: ["CMD-SHELL", "mongosh --quiet --eval 'quit((db.adminCommand({ ping: 1 }).ok)?0:2)'"]
       interval: 10s
       timeout: 5s
-      retries: 12
+      retries: 5
   keycloak-server:
     image: quay.io/keycloak/keycloak:latest
     command: start-dev
@@ -52,10 +58,11 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:9200/"]
       interval: 10s
-      timeout: 3s
-      retries: 30
+      timeout: 5s
+      retries: 5
   logstash:
     image: logstash:6.5.2
+    networks: [appnet]
     ports:
       - "12201:12201/udp"
     command: -e 'input { gelf { host => "0.0.0.0" port => 12201 } }
@@ -65,9 +72,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:9600/"]  # logstash node info
-      interval: 15s
+      interval: 10s
       timeout: 5s
-      retries: 20
+      retries: 5
   kibana:
     image: kibana:7.3.0
     ports:
@@ -79,6 +86,7 @@ services:
         condition: service_healthy
   inventory-microservice:
     image: mafaldacf/inventory-microservice
+    networks: [appnet]
     depends_on:
       config-server:
         condition: service_healthy
@@ -89,12 +97,14 @@ services:
     expose:
       - "8086"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8086/health"]
+      test: ["CMD-SHELL", "nc -z localhost 8086"]
       interval: 10s
-      timeout: 3s
-      retries: 20
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   product-microservice:
     image: mafaldacf/product-microservice
+    networks: [appnet]
     depends_on:
       mysql:
         condition: service_healthy
@@ -103,12 +113,14 @@ services:
     expose:
       - "8082"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8082/health"]
+      test: ["CMD-SHELL", "nc -z localhost 8082"]
       interval: 10s
-      timeout: 3s
-      retries: 20
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   account-microservice:
     image: mafaldacf/account-microservice
+    networks: [appnet]
     depends_on:
       mysql:
         condition: service_healthy
@@ -118,12 +130,14 @@ services:
     expose:
       - "8081"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+      test: ["CMD-SHELL", "nc -z localhost 8081"]
       interval: 10s
-      timeout: 3s
-      retries: 20
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   store-microservice:
     image: mafaldacf/store-microservice
+    networks: [appnet]
     depends_on:
       mongo:
         condition: service_healthy
@@ -132,14 +146,11 @@ services:
     expose:
       - "8085"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8085/health"]
+      test: ["CMD-SHELL", "nc -z localhost 8085"]
       interval: 10s
-      timeout: 3s
-      retries: 20
-    networks:
-      default:
-        aliases:
-          - store-microservice
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   cache-infrastructure:
     image: mafaldacf/cache-infrastructure
     links:
@@ -150,6 +161,7 @@ services:
       - logstash
   shopping-cart-microservice:
     image: mafaldacf/shopping-cart-microservice
+    networks: [appnet]
     links:
       - mysql
       - logstash
@@ -161,8 +173,15 @@ services:
       - logstash
     expose:
       - "8084"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8084"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   order-microservice:
     image: mafaldacf/order-microservice
+    networks: [appnet]
     links:
       - mysql
       - logstash
@@ -173,6 +192,12 @@ services:
       - inventory-microservice
     expose:
       - "8090"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8090"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   monitor-dashboard:
     image: mafaldacf/monitor-dashboard
     ports:
@@ -183,25 +208,30 @@ services:
       - logstash
   api-gateway:
     image: mafaldacf/api-gateway
+    networks: [appnet]
     ports:
       - "8787:8787"
     environment:
       - JAVA_OPTS="-Xms128m -Xmx256m"
-    depends_on:
-      account-microservice:
-        condition: service_healthy
-      product-microservice:
-        condition: service_healthy
-      inventory-microservice:
-        condition: service_healthy
-      shopping-cart-microservice:
-        condition: service_healthy
-      order-microservice:
-        condition: service_healthy
-      store-microservice:
-        condition: service_healthy
-      keycloak-server:
-        condition: service_started
+    #depends_on:
+    #  account-microservice:
+    #    condition: service_healthy
+    #  product-microservice:
+    #    condition: service_healthy
+    #  inventory-microservice:
+    #    condition: service_healthy
+    #  shopping-cart-microservice:
+    #    condition: service_healthy
+    #  order-microservice:
+    #    condition: service_healthy
+    #  store-microservice:
+    #    condition: service_healthy
+    #  keycloak-server:
+    #    condition: service_started
     restart: unless-stopped
-    extra_hosts:
-      - "dockernet:${EXTERNAL_IP}"
+    #extra_hosts:
+    #  - "dockernet:${EXTERNAL_IP}"
+
+
+networks:
+  appnet: {}

@@ -5,6 +5,10 @@ ENV VERTICLE_FILE=target/store-microservice-fat.jar
 # Set the location of the verticles
 ENV VERTICLE_HOME=/opt/verticles
 
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl ca-certificates tzdata \
+ && rm -rf /var/lib/apt/lists/*
+
 EXPOSE 8085
 
 COPY $VERTICLE_FILE $VERTICLE_HOME/
@@ -12,4 +16,4 @@ COPY src/config/docker.json $VERTICLE_HOME/
 
 WORKDIR $VERTICLE_HOME
 ENTRYPOINT ["sh", "-c"]
-CMD ["java -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory -jar store-microservice-fat.jar -cluster -conf docker.json"]
+CMD ["java -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory -Djava.net.preferIPv4Stack=true -jar store-microservice-fat.jar -cluster -conf docker.json"]
